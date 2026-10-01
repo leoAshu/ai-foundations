@@ -1,0 +1,6 @@
+ruff
+pyright
+notebook
+numpy
+matplotlib
+graphviz
