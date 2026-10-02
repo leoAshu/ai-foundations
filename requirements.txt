@@ -4,3 +4,4 @@ notebook
 numpy
 matplotlib
 graphviz
+torch
