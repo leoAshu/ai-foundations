@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+from aif.optim import BaseOptimizer
+
 
 class Module(nn.Module):
     def __init__(self, lr):
@@ -14,7 +16,7 @@ class Module(nn.Module):
     def loss(self, y_hat, y):
         raise NotImplementedError
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> torch.optim.Optimizer | BaseOptimizer:
         return torch.optim.SGD(self.parameters(), self.lr)
 
     def training_step(self, batch):
