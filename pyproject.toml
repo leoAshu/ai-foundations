@@ -15,3 +15,10 @@ dependencies = [
 
 [tool.setuptools]
 packages = ['aif']
+
+[tool.pytest.ini_options]
+testpaths = ['tests']
+filterwarnings = [
+    # plt.show() is a no-op under the Agg backend used by tests
+    'ignore:FigureCanvasAgg is non-interactive:UserWarning',
+]
