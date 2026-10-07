@@ -1,5 +1,6 @@
 ruff
 pyright
+pytest
 notebook
 numpy
 matplotlib
