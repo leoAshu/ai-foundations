@@ -78,10 +78,15 @@ def regression_data():
     return TensorData(X, y, num_train=150)
 
 
+def fit(model, data, max_epochs):
+    trainer = Trainer(max_epochs=max_epochs, plot=False)
+    trainer.fit(model, data)
+
+    return trainer.history
+
+
 def test_regression_history(regression_data):
-    history = Trainer(max_epochs=5, plot=False).fit(
-        LinearRegression(num_inputs=2), regression_data
-    )
+    history = fit(LinearRegression(num_inputs=2), regression_data, max_epochs=5)
 
     assert history.keys() == {'train_loss', 'val_loss'}
     assert all(len(values) == 5 for values in history.values())
@@ -93,9 +98,10 @@ def test_classifier_history():
     X = torch.randn(300, 2)
     y = (X[:, 0] > X[:, 1]).long()
 
-    history = Trainer(max_epochs=10, plot=False).fit(
+    history = fit(
         LinearClassifier(num_inputs=2, num_outputs=2),
         TensorData(X, y, num_train=200),
+        max_epochs=10,
     )
 
     assert history.keys() == {'train_loss', 'val_loss', 'val_acc'}
@@ -107,8 +113,8 @@ def test_metrics_averaged_per_sample():
     y = torch.arange(20, dtype=torch.float32)
 
     # train: 0..9 in batches of 4, 4, 2; val: 10..19 in batches of 4, 4, 2
-    history = Trainer(max_epochs=1, plot=False).fit(
-        MeanTarget(), TensorData(X, y, num_train=10, batch_size=4)
+    history = fit(
+        MeanTarget(), TensorData(X, y, num_train=10, batch_size=4), max_epochs=1
     )
 
     assert history['train_loss'] == [pytest.approx(4.5)]
@@ -119,7 +125,7 @@ def test_train_and_eval_modes():
     model = MeanTarget()
     data = TensorData(torch.zeros(8, 1), torch.zeros(8), num_train=4, batch_size=4)
 
-    Trainer(max_epochs=1, plot=False).fit(model, data)
+    fit(model, data, max_epochs=1)
 
     assert model.modes == [True, False]
 
@@ -127,9 +133,7 @@ def test_train_and_eval_modes():
 def test_without_val_dataloader(regression_data):
     regression_data.with_val = False
 
-    history = Trainer(max_epochs=2, plot=False).fit(
-        LinearRegression(num_inputs=2), regression_data
-    )
+    history = fit(LinearRegression(num_inputs=2), regression_data, max_epochs=2)
 
     assert history.keys() == {'train_loss'}
 
@@ -138,15 +142,13 @@ def test_fit_resets_history(regression_data):
     trainer = Trainer(max_epochs=2, plot=False)
 
     trainer.fit(LinearRegression(num_inputs=2), regression_data)
-    history = trainer.fit(LinearRegression(num_inputs=2), regression_data)
+    trainer.fit(LinearRegression(num_inputs=2), regression_data)
 
-    assert all(len(values) == 2 for values in history.values())
+    assert all(len(values) == 2 for values in trainer.history.values())
 
 
 def test_log_line(regression_data, capsys):
-    Trainer(max_epochs=1, plot=False).fit(
-        LinearRegression(num_inputs=2), regression_data
-    )
+    fit(LinearRegression(num_inputs=2), regression_data, max_epochs=1)
 
     line = capsys.readouterr().out.strip()
 

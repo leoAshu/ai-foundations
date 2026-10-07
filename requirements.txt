@@ -7,5 +7,4 @@ matplotlib
 graphviz
 torch
 torchvision
-d2l
 -e .

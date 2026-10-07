@@ -1,5 +1,7 @@
 target-version = "py311"
 line-length = 88
+extend-exclude = ["*.ipynb"]
+force-exclude = true
 
 [lint]
 select = [

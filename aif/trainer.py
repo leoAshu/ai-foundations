@@ -35,8 +35,6 @@ class Trainer:
             self.epoch = epoch
             self.fit_epoch()
 
-        return self.history
-
     def fit_epoch(self):
         metrics = {'train_loss': self._train_epoch()}
 
