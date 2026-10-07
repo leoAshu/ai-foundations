@@ -1,0 +1,17 @@
+[build-system]
+requires = ['setuptools>=64']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'aif'
+version = '0.1.0'
+description = 'Reusable base classes for the ai_foundations notebooks'
+requires-python = '>=3.11'
+dependencies = [
+    'torch',
+    'matplotlib',
+    'ipython',
+]
+
+[tool.setuptools]
+packages = ['aif']
