@@ -6,6 +6,7 @@ __pycache__/
 
 # datasets
 FashionMNIST/
+house_prices_kaggle/
 
 # build artifacts
 *.egg-info/
