@@ -1,17 +1,38 @@
 import matplotlib.pyplot as plt
 import torch
-from IPython.display import clear_output
+from IPython.core.interactiveshell import InteractiveShell
+from IPython.display import Pretty, display
 
 
-def plot_history(history, figsize=(7, 4), xscale='linear', yscale='linear'):
+class LiveDisplay:
+    # one output area that is replaced in place on every update, so output
+    # displayed before it (e.g. earlier folds) is kept
+    def __init__(self):
+        self._handle = None
+
+    def update(self, obj):
+        if not InteractiveShell.initialized():
+            # plain python: nothing to update in place, so just print text
+            if isinstance(obj, str):
+                print(obj)
+            return
+
+        if isinstance(obj, str):
+            obj = Pretty(obj)
+
+        if self._handle is None:
+            self._handle = display(obj, display_id=True)
+        else:
+            self._handle.update(obj)
+
+
+def plot_history(history, figsize=(7, 4), xscale='linear', yscale='linear', title=None):
     # history keys are '<split>_<metric>', e.g. 'train_loss', 'val_acc';
     # each metric gets its own subplot with one line per split
     metrics = {}
     for key, values in history.items():
         split, metric = key.split('_', 1)
         metrics.setdefault(metric, []).append((split, values))
-
-    clear_output(wait=True)
 
     fig, axes = plt.subplots(1, len(metrics), figsize=figsize, squeeze=False)
     for ax, (metric, lines) in zip(axes[0], metrics.items(), strict=True):
@@ -25,8 +46,9 @@ def plot_history(history, figsize=(7, 4), xscale='linear', yscale='linear'):
         ax.legend()
         ax.grid(True)
 
+    if title:
+        fig.suptitle(title)
     fig.tight_layout()
-    plt.show()
 
     return fig
 

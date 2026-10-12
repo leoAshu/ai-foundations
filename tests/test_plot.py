@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from aif import plot_history, show_images
+from aif.plot import LiveDisplay
 
 
 @pytest.fixture(autouse=True)
@@ -53,6 +54,65 @@ def test_plot_history_scales_apply_to_every_subplot():
         ('log', 'log'),
         ('log', 'log'),
     ]
+
+
+def test_plot_history_title():
+    fig = plot_history({'train_loss': [0.9, 0.5]}, title='Fold 1/5')
+
+    assert fig.get_suptitle() == 'Fold 1/5'
+
+
+def test_plot_history_does_not_clear_or_show(monkeypatch):
+    monkeypatch.setattr(plt, 'show', lambda: pytest.fail('plt.show called'))
+
+    plot_history({'train_loss': [0.9, 0.5]})
+
+
+class FakeHandle:
+    def __init__(self, obj):
+        self.shown = [obj]
+
+    def update(self, obj):
+        self.shown.append(obj)
+
+
+@pytest.fixture
+def notebook(monkeypatch):
+    handles = []
+
+    def fake_display(obj, display_id):
+        assert display_id is True
+        handles.append(FakeHandle(obj))
+        return handles[-1]
+
+    monkeypatch.setattr('aif.plot.InteractiveShell.initialized', lambda: True)
+    monkeypatch.setattr('aif.plot.display', fake_display)
+
+    return handles
+
+
+def test_live_display_updates_one_handle_in_place(notebook):
+    live = LiveDisplay()
+    live.update('a')
+    live.update('b')
+
+    (handle,) = notebook
+    assert [obj.data for obj in handle.shown] == ['a', 'b']
+
+
+def test_separate_live_displays_get_separate_handles(notebook):
+    LiveDisplay().update('fold 1')
+    LiveDisplay().update('fold 2')
+
+    assert len(notebook) == 2
+
+
+def test_live_display_prints_text_outside_notebook(capsys):
+    live = LiveDisplay()
+    live.update('epoch 1')
+    live.update(plt.figure())
+
+    assert capsys.readouterr().out == 'epoch 1\n'
 
 
 @pytest.mark.parametrize(

@@ -1,14 +1,27 @@
+import matplotlib.pyplot as plt
 import torch
 
-from aif.plot import plot_history
+from aif.plot import LiveDisplay, plot_history
 
 
 class Trainer:
-    def __init__(self, max_epochs, plot=True, xscale='linear', yscale='linear'):
+    # log_every=None keeps one status line updated in place; log_every=N
+    # keeps a line every N epochs (and the last epoch) instead
+    def __init__(
+        self,
+        max_epochs,
+        plot=True,
+        xscale='linear',
+        yscale='linear',
+        title=None,
+        log_every=None,
+    ):
         self.max_epochs = max_epochs
         self.plot = plot
         self.xscale = xscale
         self.yscale = yscale
+        self.title = title
+        self.log_every = log_every
 
         self._reset()
 
@@ -16,6 +29,10 @@ class Trainer:
     def _reset(self):
         self.epoch = 0
         self.history = {}
+
+        # fresh output areas per fit, so earlier fits' output stays visible
+        self._plot_display = LiveDisplay()
+        self._status_display = LiveDisplay()
 
     def prepare_data(self, data):
         self.train_dataloader = data.train_dataloader()
@@ -51,14 +68,27 @@ class Trainer:
 
     def log(self, metrics):
         if self.plot:
-            plot_history(self.history, xscale=self.xscale, yscale=self.yscale)
-
-        print(
-            ' | '.join(
-                [f'Epoch {self.epoch + 1}/{self.max_epochs}']
-                + [f'{key}: {value:.6f}' for key, value in metrics.items()]
+            fig = plot_history(
+                self.history,
+                xscale=self.xscale,
+                yscale=self.yscale,
+                title=self.title,
             )
+            self._plot_display.update(fig)
+            plt.close(fig)
+
+        epoch = self.epoch + 1
+        width = len(str(self.max_epochs))
+        line = ' | '.join(
+            ([self.title] if self.title else [])
+            + [f'Epoch {epoch:>{width}}/{self.max_epochs}']
+            + [f'{key}: {value:.6f}' for key, value in metrics.items()]
         )
+
+        if self.log_every is None:
+            self._status_display.update(line)
+        elif epoch % self.log_every == 0 or epoch == self.max_epochs:
+            print(line)
 
     # losses and metrics are batch means, so weight each by its batch size
     # to get a per-sample mean over the epoch

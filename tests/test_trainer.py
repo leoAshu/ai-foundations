@@ -156,27 +156,59 @@ def test_log_line(regression_data, capsys):
     assert ' | val_loss: ' in line
 
 
-def test_plot_called_each_epoch(regression_data, monkeypatch):
-    calls = []
-    monkeypatch.setattr(
-        'aif.trainer.plot_history',
-        lambda history, **kwargs: calls.append(kwargs),
-    )
+def test_log_every_keeps_every_nth_and_last_epoch(regression_data, capsys):
+    trainer = Trainer(max_epochs=7, plot=False, log_every=3)
+    trainer.fit(LinearRegression(num_inputs=2), regression_data)
 
+    lines = capsys.readouterr().out.splitlines()
+
+    assert [line.split(' | ')[0] for line in lines] == [
+        'Epoch 3/7',
+        'Epoch 6/7',
+        'Epoch 7/7',
+    ]
+
+
+def test_title_prefixes_log_line_and_pads_epoch(regression_data, capsys):
+    trainer = Trainer(max_epochs=10, plot=False, title='Fold 2/5', log_every=5)
+    trainer.fit(LinearRegression(num_inputs=2), regression_data)
+
+    first = capsys.readouterr().out.splitlines()[0]
+
+    assert first.startswith('Fold 2/5 | Epoch  5/10 | train_loss: ')
+
+
+@pytest.fixture
+def plot_calls(monkeypatch):
+    calls = []
+
+    def fake_plot_history(history, **kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr('aif.trainer.plot_history', fake_plot_history)
+
+    return calls
+
+
+def test_plot_called_each_epoch(regression_data, plot_calls):
     Trainer(max_epochs=3).fit(LinearRegression(num_inputs=2), regression_data)
 
-    assert calls == [{'xscale': 'linear', 'yscale': 'linear'}] * 3
+    assert plot_calls == [{'xscale': 'linear', 'yscale': 'linear', 'title': None}] * 3
 
 
-def test_plot_scales_passed_through(regression_data, monkeypatch):
-    calls = []
-    monkeypatch.setattr(
-        'aif.trainer.plot_history',
-        lambda history, **kwargs: calls.append(kwargs),
-    )
-
-    Trainer(max_epochs=1, yscale='log').fit(
+def test_plot_options_passed_through(regression_data, plot_calls):
+    Trainer(max_epochs=1, yscale='log', title='Fold 1/5').fit(
         LinearRegression(num_inputs=2), regression_data
     )
 
-    assert calls == [{'xscale': 'linear', 'yscale': 'log'}]
+    assert plot_calls == [{'xscale': 'linear', 'yscale': 'log', 'title': 'Fold 1/5'}]
+
+
+def test_each_fit_gets_its_own_output_area(regression_data):
+    trainer = Trainer(max_epochs=1, plot=False)
+    first = (trainer._plot_display, trainer._status_display)
+
+    trainer.fit(LinearRegression(num_inputs=2), regression_data)
+
+    assert trainer._plot_display is not first[0]
+    assert trainer._status_display is not first[1]
