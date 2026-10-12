@@ -39,6 +39,22 @@ def test_plot_history_epochs_start_at_one():
     assert np.asarray(ax.get_lines()[0].get_xdata()).tolist() == [1, 2, 3]
 
 
+def test_plot_history_linear_scale_by_default():
+    (ax,) = plot_history({'train_loss': [0.9, 0.5]}).axes
+
+    assert (ax.get_xscale(), ax.get_yscale()) == ('linear', 'linear')
+
+
+def test_plot_history_scales_apply_to_every_subplot():
+    history = {'train_loss': [0.9, 0.5], 'val_acc': [0.7, 0.8]}
+    fig = plot_history(history, xscale='log', yscale='log')
+
+    assert [(ax.get_xscale(), ax.get_yscale()) for ax in fig.axes] == [
+        ('log', 'log'),
+        ('log', 'log'),
+    ]
+
+
 @pytest.mark.parametrize(
     ('shape', 'expected'),
     [((28, 28), (28, 28)), ((1, 28, 28), (28, 28)), ((3, 28, 28), (28, 28, 3))],

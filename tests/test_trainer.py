@@ -158,8 +158,25 @@ def test_log_line(regression_data, capsys):
 
 def test_plot_called_each_epoch(regression_data, monkeypatch):
     calls = []
-    monkeypatch.setattr('aif.trainer.plot_history', calls.append)
+    monkeypatch.setattr(
+        'aif.trainer.plot_history',
+        lambda history, **kwargs: calls.append(kwargs),
+    )
 
     Trainer(max_epochs=3).fit(LinearRegression(num_inputs=2), regression_data)
 
-    assert len(calls) == 3
+    assert calls == [{'xscale': 'linear', 'yscale': 'linear'}] * 3
+
+
+def test_plot_scales_passed_through(regression_data, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        'aif.trainer.plot_history',
+        lambda history, **kwargs: calls.append(kwargs),
+    )
+
+    Trainer(max_epochs=1, yscale='log').fit(
+        LinearRegression(num_inputs=2), regression_data
+    )
+
+    assert calls == [{'xscale': 'linear', 'yscale': 'log'}]

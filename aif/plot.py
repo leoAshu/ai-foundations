@@ -3,7 +3,7 @@ import torch
 from IPython.display import clear_output
 
 
-def plot_history(history, figsize=(7, 4)):
+def plot_history(history, figsize=(7, 4), xscale='linear', yscale='linear'):
     # history keys are '<split>_<metric>', e.g. 'train_loss', 'val_acc';
     # each metric gets its own subplot with one line per split
     metrics = {}
@@ -18,6 +18,8 @@ def plot_history(history, figsize=(7, 4)):
         for split, values in lines:
             ax.plot(range(1, len(values) + 1), values, label=split)
 
+        ax.set_xscale(xscale)
+        ax.set_yscale(yscale)
         ax.set_xlabel('Epoch')
         ax.set_ylabel(metric)
         ax.legend()

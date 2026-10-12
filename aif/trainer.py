@@ -4,9 +4,11 @@ from aif.plot import plot_history
 
 
 class Trainer:
-    def __init__(self, max_epochs, plot=True):
+    def __init__(self, max_epochs, plot=True, xscale='linear', yscale='linear'):
         self.max_epochs = max_epochs
         self.plot = plot
+        self.xscale = xscale
+        self.yscale = yscale
 
         self._reset()
 
@@ -49,7 +51,7 @@ class Trainer:
 
     def log(self, metrics):
         if self.plot:
-            plot_history(self.history)
+            plot_history(self.history, xscale=self.xscale, yscale=self.yscale)
 
         print(
             ' | '.join(
