@@ -3,8 +3,8 @@ import numpy as np
 import pytest
 import torch
 
-from aif import plot_history, show_images
-from aif.plot import LiveDisplay
+from aif import plot, plot_history, show_images
+from aif.plotting import LiveDisplay
 
 
 @pytest.fixture(autouse=True)
@@ -18,6 +18,66 @@ def lines_by_label(ax):
         line.get_label(): np.asarray(line.get_ydata()).tolist()
         for line in ax.get_lines()
     }
+
+
+def xy(line):
+    return (
+        np.asarray(line.get_xdata()).tolist(),
+        np.asarray(line.get_ydata()).tolist(),
+    )
+
+
+def test_plot_single_curve():
+    plot([0, 1, 2], [0, 1, 4], xlabel='x', ylabel='y')
+    ax = plt.gca()
+
+    assert [xy(line) for line in ax.get_lines()] == [([0, 1, 2], [0, 1, 4])]
+    assert (ax.get_xlabel(), ax.get_ylabel()) == ('x', 'y')
+
+
+def test_plot_shared_x_with_labels():
+    x = torch.arange(3.0)
+    plot(x, [x, x**2], legend=['x', 'x^2'])
+    ax = plt.gca()
+
+    assert [xy(line) for line in ax.get_lines()] == [
+        ([0, 1, 2], [0, 1, 2]),
+        ([0, 1, 2], [0, 1, 4]),
+    ]
+    legend = ax.get_legend()
+    assert legend is not None
+    assert [t.get_text() for t in legend.get_texts()] == ['x', 'x^2']
+
+
+def test_plot_separate_x_per_curve():
+    plot([[0, 1], [5, 6, 7]], [[1, 2], [3, 4, 5]])
+
+    assert [xy(line) for line in plt.gca().get_lines()] == [
+        ([0, 1], [1, 2]),
+        ([5, 6, 7], [3, 4, 5]),
+    ]
+
+
+def test_plot_without_y_uses_index():
+    plot([3, 1, 2])
+
+    assert [xy(line) for line in plt.gca().get_lines()] == [([0, 1, 2], [3, 1, 2])]
+
+
+def test_plot_formats_and_scales():
+    plot([1, 2], [[1, 2], [2, 4]], yscale='log', fmts=('b-', 'r:'))
+    ax = plt.gca()
+
+    assert [line.get_linestyle() for line in ax.get_lines()] == ['-', ':']
+    assert ax.get_yscale() == 'log'
+
+
+def test_plot_clears_given_axes():
+    _, ax = plt.subplots()
+    plot([0, 1], [0, 1], axes=ax)
+    plot([0, 1], [1, 0], axes=ax)
+
+    assert [xy(line) for line in ax.get_lines()] == [([0, 1], [1, 0])]
 
 
 def test_plot_history_one_subplot_per_metric():
@@ -85,8 +145,8 @@ def notebook(monkeypatch):
         handles.append(FakeHandle(obj))
         return handles[-1]
 
-    monkeypatch.setattr('aif.plot.InteractiveShell.initialized', lambda: True)
-    monkeypatch.setattr('aif.plot.display', fake_display)
+    monkeypatch.setattr('aif.plotting.InteractiveShell.initialized', lambda: True)
+    monkeypatch.setattr('aif.plotting.display', fake_display)
 
     return handles
 

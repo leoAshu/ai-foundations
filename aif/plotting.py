@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import torch
 from IPython.core.interactiveshell import InteractiveShell
 from IPython.display import Pretty, display
+from matplotlib_inline.backend_inline import set_matplotlib_formats
 
 
 class LiveDisplay:
@@ -24,6 +25,80 @@ class LiveDisplay:
             self._handle = display(obj, display_id=True)
         else:
             self._handle.update(obj)
+
+
+def use_svg_display():
+    # IPython.display.set_matplotlib_formats (used by d2l) was removed in IPython 9;
+    # the replacement creates an IPython shell if none exists, which would make
+    # LiveDisplay think it runs in a notebook, so only call it inside one
+    if InteractiveShell.initialized():
+        set_matplotlib_formats('svg')
+
+
+def set_figsize(figsize=(3.5, 2.5)):
+    use_svg_display()
+    plt.rcParams['figure.figsize'] = figsize
+
+
+def set_axes(axes, xlabel, ylabel, xlim, ylim, xscale, yscale, legend):
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xscale(xscale)
+    axes.set_yscale(yscale)
+    axes.set_xlim(xlim)
+    axes.set_ylim(ylim)
+    if legend:
+        axes.legend(legend)
+    axes.grid()
+
+
+def plot(
+    X,
+    Y=None,
+    xlabel=None,
+    ylabel=None,
+    legend=None,
+    xlim=None,
+    ylim=None,
+    xscale='linear',
+    yscale='linear',
+    fmts=('-', 'm--', 'g-.', 'r:'),
+    figsize=(3.5, 2.5),
+    axes=None,
+):
+    # port of d2l.plot; X and Y are one curve or a list of curves, a single X is
+    # shared by every Y, and with Y=None the values of X are plotted against
+    # their index; legend labels the curves in order
+    if legend is None:
+        legend = []
+
+    set_figsize(figsize)
+    axes = axes if axes else plt.gca()
+
+    # True if X (tensor or list) has 1 axis
+    def has_one_axis(X):
+        return (
+            hasattr(X, 'ndim')
+            and X.ndim == 1
+            or isinstance(X, list)
+            and not hasattr(X[0], '__len__')
+        )
+
+    if has_one_axis(X):
+        X = [X]
+    if Y is None:
+        X, Y = [[]] * len(X), X
+    elif has_one_axis(Y):
+        Y = [Y]
+    if len(X) != len(Y):
+        X = X * len(Y)
+    axes.cla()
+    for x, y, fmt in zip(X, Y, fmts):  # noqa: B905 - curves beyond fmts are dropped, as in d2l
+        if len(x):
+            axes.plot(x, y, fmt)
+        else:
+            axes.plot(y, fmt)
+    set_axes(axes, xlabel, ylabel, xlim, ylim, xscale, yscale, legend)
 
 
 def plot_history(history, figsize=(7, 4), xscale='linear', yscale='linear', title=None):

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 
-from aif.plot import LiveDisplay, plot_history
+from aif.plotting import LiveDisplay, plot_history
 
 
 class Trainer:
