@@ -1,7 +1,7 @@
 """Reusable base classes and models for the ai_foundations notebooks."""
 
 from aif.data import DataModule
-from aif.models import LinearRegression
+from aif.models import LinearRegression, SoftmaxClassifier
 from aif.module import Classifier, Module
 from aif.optim import SGD, BaseOptimizer
 from aif.plotting import plot, plot_history, show_images
@@ -14,6 +14,7 @@ __all__ = [
     'Module',
     'Classifier',
     'LinearRegression',
+    'SoftmaxClassifier',
     'BaseOptimizer',
     'SGD',
     'Trainer',
