@@ -5,7 +5,7 @@ from aif.models import LinearRegression, SoftmaxClassifier
 from aif.module import Classifier, Module
 from aif.optim import SGD, BaseOptimizer
 from aif.plotting import plot, plot_history, show_images
-from aif.text import TimeMachine, Vocab
+from aif.text import BaseTimeMachine, TimeMachine, Vocab
 from aif.trainer import Trainer
 
 __version__ = '0.1.0'
@@ -22,6 +22,7 @@ __all__ = [
     'plot',
     'plot_history',
     'show_images',
+    'BaseTimeMachine',
     'TimeMachine',
     'Vocab',
 ]

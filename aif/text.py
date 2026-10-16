@@ -2,11 +2,13 @@ import collections
 import re
 from pathlib import Path
 
+import torch
+
 from aif.data import DataModule
 
 
-# defined in d2l/05_rnn/02_exploratory_language_analysis.ipynb
-class TimeMachine(DataModule):
+# defined in d2l/05_rnn/02_exploratory_language_analysis.ipynb as TimeMachine
+class BaseTimeMachine(DataModule):
     root: str
 
     def __init__(self, root='../data'):
@@ -31,6 +33,36 @@ class TimeMachine(DataModule):
         corpus = [vocab[token] for token in tokens]
 
         return corpus, vocab
+
+
+# defined in d2l/05_rnn/03_language_sequential_data_prep.ipynb
+class TimeMachine(BaseTimeMachine):
+    def __init__(
+        self, batch_size, num_steps, root='../data', num_train=10_000, num_val=5_000
+    ):
+        super().__init__(root)
+
+        self.batch_size = batch_size
+        self.num_steps = num_steps
+        self.num_train = num_train
+        self.num_val = num_val
+
+        corpus, self.vocab = self.build(self._load())
+
+        array = torch.tensor(
+            [corpus[i : i + num_steps + 1] for i in range(len(corpus) - num_steps)]
+        )
+
+        self.X, self.Y = array[:, :-1], array[:, 1:]
+
+    def get_dataloader(self, train):
+        idx = (
+            slice(0, self.num_train)
+            if train
+            else slice(self.num_train, self.num_train + self.num_val)
+        )
+
+        return self._get_tensorloader([self.X, self.Y], train, idx)
 
 
 # defined in d2l/05_rnn/02_exploratory_language_analysis.ipynb

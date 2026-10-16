@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from aif import TimeMachine, Vocab
+from aif import BaseTimeMachine, TimeMachine, Vocab
 
 DATA = Path(__file__).parents[1] / 'd2l' / 'data'
 
@@ -13,11 +13,11 @@ DATA = Path(__file__).parents[1] / 'd2l' / 'data'
 def book(tmp_path):
     (tmp_path / 'timemachine.txt').write_text('The Time-Machine,\n by H. G. Wells 1895')
 
-    return TimeMachine(root=str(tmp_path))
+    return BaseTimeMachine(root=str(tmp_path))
 
 
 def test_time_machine_default_root():
-    assert TimeMachine().root == '../data'
+    assert BaseTimeMachine().root == '../data'
 
 
 def test_time_machine_preprocess_keeps_lowercase_letters_and_spaces(book):
@@ -48,12 +48,50 @@ def test_time_machine_build_reuses_given_vocab(book):
 
 @pytest.mark.skipif(not (DATA / 'timemachine.txt').exists(), reason='no dataset')
 def test_time_machine_full_book():
-    data = TimeMachine(root=str(DATA))
+    data = BaseTimeMachine(root=str(DATA))
     corpus, vocab = data.build(data._load())
 
     # 26 letters, space and <unk>
     assert len(vocab) == 28
     assert len(corpus) > 100_000
+
+
+@pytest.fixture
+def long_book(tmp_path):
+    # 'abcdefghij' repeated: 30 characters, all distinct within a period of 10
+    (tmp_path / 'timemachine.txt').write_text('abcdefghij' * 3)
+
+    return str(tmp_path)
+
+
+def test_time_machine_windows_shift_targets_by_one(long_book):
+    data = TimeMachine(batch_size=4, num_steps=5, root=long_book)
+
+    # one window per start position that leaves room for the shifted target
+    assert data.X.shape == data.Y.shape == (30 - 5, 5)
+    assert data.vocab.to_tokens(data.X[0]) == list('abcde')
+    assert data.vocab.to_tokens(data.Y[0]) == list('bcdef')
+    assert (data.X[1:] == data.Y[:-1]).all()
+
+
+def test_time_machine_train_and_val_split(long_book):
+    data = TimeMachine(
+        batch_size=4, num_steps=5, root=long_book, num_train=10, num_val=7
+    )
+
+    train, val = data.train_dataloader(), data.val_dataloader()
+
+    assert data.batch_size == 4
+    assert len(train.dataset) == 10
+    assert len(val.dataset) == 7
+    assert (val.dataset.tensors[0] == data.X[10:17]).all()
+
+
+def test_time_machine_val_capped_by_available_windows(long_book):
+    data = TimeMachine(batch_size=4, num_steps=5, root=long_book, num_train=20)
+
+    # only 25 windows exist, so the default num_val of 5000 yields 5
+    assert len(data.val_dataloader().dataset) == 5
 
 
 def test_vocab_indices_are_sorted_tokens_with_unk():
