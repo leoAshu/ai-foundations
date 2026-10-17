@@ -212,3 +212,93 @@ def test_each_fit_gets_its_own_output_area(regression_data):
 
     assert trainer._plot_display is not first[0]
     assert trainer._status_display is not first[1]
+
+
+def grad_model(*grads):
+    # a module whose parameters already hold the given gradients
+    model = nn.Module()
+    for i, grad in enumerate(grads):
+        param = nn.Parameter(torch.zeros(len(grad)))
+        param.grad = torch.tensor(grad)
+        model.register_parameter(f'p{i}', param)
+
+    return model
+
+
+def grads(model):
+    return [p.grad.tolist() for p in model.parameters()]
+
+
+def test_clip_gradients_rescales_norm_above_threshold():
+    model = grad_model([3.0, 4.0])
+
+    Trainer(max_epochs=1).clip_gradients(1.0, model)
+
+    assert grads(model) == [pytest.approx([0.6, 0.8])]
+
+
+def test_clip_gradients_leaves_norm_below_threshold():
+    model = grad_model([3.0, 4.0])
+
+    Trainer(max_epochs=1).clip_gradients(5.0, model)
+
+    assert grads(model) == [[3.0, 4.0]]
+
+
+def test_clip_gradients_uses_norm_over_all_parameters():
+    # norms 3 and 4 are each below 4.5, but together the norm is 5
+    model = grad_model([3.0], [4.0])
+
+    Trainer(max_epochs=1).clip_gradients(4.5, model)
+
+    assert grads(model) == [pytest.approx([2.7]), pytest.approx([3.6])]
+
+
+def test_clip_gradients_ignores_frozen_parameters():
+    model = grad_model([3.0, 4.0], [100.0])
+    model.p1.requires_grad_(False)
+
+    Trainer(max_epochs=1).clip_gradients(1.0, model)
+
+    assert grads(model) == [pytest.approx([0.6, 0.8]), [100.0]]
+
+
+class RecordingSGD(SGD):
+    # records the gradient norm each step sees
+    def __init__(self, params, lr):
+        super().__init__(params, lr)
+
+        self.norms = []
+
+    def step(self):
+        grads = [p.grad.reshape(-1) for p in self.params]
+        self.norms.append(torch.cat(grads).norm().item())
+
+        super().step()
+
+
+class RecordingLinearRegression(LinearRegression):
+    def configure_optimizers(self):
+        self.optim = RecordingSGD(self.parameters(), self.lr)
+
+        return self.optim
+
+
+def test_fit_clips_gradients_before_step(regression_data):
+    model = RecordingLinearRegression(num_inputs=2)
+
+    Trainer(max_epochs=2, plot=False, gradient_clip_val=0.5).fit(model, regression_data)
+
+    # unclipped, the first steps on y = 2x1 - 3.4x2 + 4.2 have norms around 10
+    assert max(model.optim.norms) == pytest.approx(0.5)
+
+
+def test_fit_without_clipping_by_default(regression_data, monkeypatch):
+    monkeypatch.setattr(
+        Trainer, 'clip_gradients', lambda *args: pytest.fail('clip_gradients called')
+    )
+    model = RecordingLinearRegression(num_inputs=2)
+
+    Trainer(max_epochs=1, plot=False).fit(model, regression_data)
+
+    assert max(model.optim.norms) > 0.5

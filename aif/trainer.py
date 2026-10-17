@@ -6,7 +6,8 @@ from aif.plotting import LiveDisplay, plot_history
 
 class Trainer:
     # log_every=None keeps one status line updated in place; log_every=N
-    # keeps a line every N epochs (and the last epoch) instead
+    # keeps a line every N epochs (and the last epoch) instead;
+    # gradient_clip_val > 0 clips the gradient norm to it, 0 disables clipping
     def __init__(
         self,
         max_epochs,
@@ -15,6 +16,7 @@ class Trainer:
         yscale='linear',
         title=None,
         log_every=None,
+        gradient_clip_val=0.0,
     ):
         self.max_epochs = max_epochs
         self.plot = plot
@@ -22,6 +24,7 @@ class Trainer:
         self.yscale = yscale
         self.title = title
         self.log_every = log_every
+        self.gradient_clip_val = gradient_clip_val
 
         self._reset()
 
@@ -101,13 +104,25 @@ class Trainer:
             loss = self.model.training_step(batch)
 
             self.optim.zero_grad()
-            loss.backward()
-            self.optim.step()
+            with torch.no_grad():
+                loss.backward()
+                if self.gradient_clip_val > 0:
+                    self.clip_gradients(self.gradient_clip_val, self.model)
+                self.optim.step()
 
             total += loss.item() * len(batch[-1])
             num_samples += len(batch[-1])
 
         return total / num_samples
+
+    # from d2l.ai 9.5.3: treats all parameters as one vector and rescales its
+    # gradient so the norm is at most grad_clip_val
+    def clip_gradients(self, grad_clip_val, model):
+        params = [p for p in model.parameters() if p.requires_grad]
+        norm = torch.sqrt(torch.stack([torch.sum(p.grad**2) for p in params]).sum())
+        if norm > grad_clip_val:
+            for param in params:
+                param.grad[:] *= grad_clip_val / norm
 
     @torch.no_grad()
     def _validate_epoch(self):
