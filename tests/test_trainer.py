@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from aif import SGD, Classifier, DataModule, Module, SoftmaxClassifier, Trainer
+from aif import SGD, Classifier, DataModule, Module, SoftmaxRegression, Trainer
 
 
 class TensorData(DataModule):
@@ -47,9 +47,6 @@ class LinearClassifier(Classifier):
 
     def forward(self, X):
         return self.linear(X)
-
-    def loss(self, y_hat, y):
-        return nn.functional.cross_entropy(y_hat, y)
 
 
 class MeanTarget(Module):
@@ -361,7 +358,7 @@ def test_fit_lazy_model_on_gpu():
     X = torch.randn(300, 2)
     y = (X[:, 0] > X[:, 1]).long()
 
-    model = SoftmaxClassifier(num_outputs=2, lr=0.5)
+    model = SoftmaxRegression(num_outputs=2, lr=0.5)
     trainer = Trainer(max_epochs=10, plot=False, num_gpus=1)
     trainer.fit(model, TensorData(X, y, num_train=200))
 

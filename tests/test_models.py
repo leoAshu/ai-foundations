@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from aif import DataModule, LinearRegression, SoftmaxClassifier, Trainer
+from aif import DataModule, LinearRegression, SoftmaxRegression, Trainer
 
 
 class SyntheticData(DataModule):
@@ -77,8 +77,8 @@ def test_linear_regression_bias_init():
     assert model.get_w_b()[1].tolist() == [12.0]
 
 
-def test_softmax_classifier_flattens_and_infers_num_inputs():
-    model = SoftmaxClassifier(num_outputs=10, lr=0.1)
+def test_softmax_regression_flattens_and_infers_num_inputs():
+    model = SoftmaxRegression(num_outputs=10, lr=0.1)
     y_hat = model(torch.ones(4, 1, 28, 28))
 
     linear = model.net[1]
@@ -87,9 +87,9 @@ def test_softmax_classifier_flattens_and_infers_num_inputs():
     assert linear.weight.shape == (10, 784)
 
 
-def test_softmax_classifier_init_on_first_forward():
+def test_softmax_regression_init_on_first_forward():
     torch.manual_seed(0)
-    model = SoftmaxClassifier(num_outputs=10, lr=0.1, sigma=0.01)
+    model = SoftmaxRegression(num_outputs=10, lr=0.1, sigma=0.01)
     model(torch.ones(1, 1000))
     linear = model.net[1]
 
@@ -98,8 +98,8 @@ def test_softmax_classifier_init_on_first_forward():
     assert linear.bias.detach().abs().max().item() == 0.0
 
 
-def test_softmax_classifier_loss_reshapes_and_reduces():
-    model = SoftmaxClassifier(num_outputs=3, lr=0.1)
+def test_softmax_regression_loss_reshapes_and_reduces():
+    model = SoftmaxRegression(num_outputs=3, lr=0.1)
     Y_hat = torch.zeros(2, 2, 3)
     Y = torch.zeros(2, 2, dtype=torch.long)
 
@@ -110,7 +110,7 @@ def test_softmax_classifier_loss_reshapes_and_reduces():
     assert model.loss(Y_hat, Y, averaged=False).shape == (4,)
 
 
-def test_softmax_classifier_learns():
+def test_softmax_regression_learns():
     torch.manual_seed(0)
     X = torch.randn(300, 2)
     y = (X[:, 0] > X[:, 1]).long()
@@ -122,6 +122,6 @@ def test_softmax_classifier_learns():
             return self._get_tensorloader((X, y), train, indices)
 
     trainer = Trainer(max_epochs=10, plot=False)
-    trainer.fit(SoftmaxClassifier(num_outputs=2, lr=0.5), Data(batch_size=16))
+    trainer.fit(SoftmaxRegression(num_outputs=2, lr=0.5), Data(batch_size=16))
 
     assert trainer.history['val_acc'][-1] > 0.9

@@ -31,9 +31,6 @@ class LinearClassifier(Classifier):
     def forward(self, X):
         return X @ self.W
 
-    def loss(self, y_hat, y):
-        return nn.functional.cross_entropy(y_hat, y)
-
 
 def test_base_forward_not_implemented():
     with pytest.raises(NotImplementedError):
@@ -111,3 +108,42 @@ def test_classifier_validation_step_returns_loss_and_acc():
     )
 
     assert metrics.keys() == {'loss', 'acc'}
+
+
+class SequenceClassifier(Classifier):
+    # no loss of its own, like d2l's RNNLMScratch: it uses Classifier.loss
+    def forward(self, X):
+        return X
+
+
+def test_classifier_loss_is_cross_entropy():
+    y_hat = torch.tensor([[2.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    y = torch.tensor([0, 2])
+
+    loss = SequenceClassifier(lr=0.1).loss(y_hat, y)
+
+    assert torch.isclose(loss, nn.functional.cross_entropy(y_hat, y))
+
+
+def test_classifier_loss_flattens_sequence_outputs():
+    # (batch, steps, vocab) logits with (batch, steps) targets
+    torch.manual_seed(0)
+    y_hat = torch.randn(2, 5, 7)
+    y = torch.randint(0, 7, (2, 5))
+    model = SequenceClassifier(lr=0.1)
+
+    expected = nn.functional.cross_entropy(
+        y_hat.reshape(10, 7), y.reshape(10), reduction='none'
+    )
+
+    assert torch.isclose(model.loss(y_hat, y), expected.mean())
+    assert torch.allclose(model.loss(y_hat, y, averaged=False), expected)
+
+
+def test_classifier_training_step_uses_inherited_loss():
+    y_hat = torch.zeros(4, 3)
+    y = torch.tensor([0, 1, 2, 0])
+
+    loss = SequenceClassifier(lr=0.1).training_step((y_hat, y))
+
+    assert torch.isclose(loss, torch.log(torch.tensor(3.0)))

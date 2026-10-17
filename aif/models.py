@@ -42,8 +42,8 @@ class LinearRegression(Module):
         return self.net.weight.detach(), self.net.bias.detach()
 
 
-# defined in d2l/02_linear_nn/02_classification.ipynb
-class SoftmaxClassifier(Classifier):
+# defined in d2l/02_linear_nn/02_classification.ipynb; uses the loss of Classifier
+class SoftmaxRegression(Classifier):
     def __init__(self, num_outputs, lr, sigma=0.01):
         super().__init__(lr)
 
@@ -56,12 +56,3 @@ class SoftmaxClassifier(Classifier):
 
     def forward(self, X):
         return self.net(X)
-
-    def loss(self, y_hat, y, averaged=True):
-        # reshaped to support multi-dimensional predictions & targets
-        y_hat = y_hat.reshape((-1, y_hat.shape[-1]))
-        y = y.reshape(-1)
-
-        return nn.functional.cross_entropy(
-            y_hat, y, reduction='mean' if averaged else 'none'
-        )

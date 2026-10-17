@@ -2,7 +2,7 @@
 
 from aif.data import DataModule
 from aif.device import cpu, gpu, num_gpus, try_gpu
-from aif.models import LinearRegression, SoftmaxClassifier
+from aif.models import LinearRegression, SoftmaxRegression
 from aif.module import Classifier, Module
 from aif.optim import SGD, BaseOptimizer
 from aif.plotting import plot, plot_history, show_images
@@ -16,7 +16,7 @@ __all__ = [
     'Module',
     'Classifier',
     'LinearRegression',
-    'SoftmaxClassifier',
+    'SoftmaxRegression',
     'BaseOptimizer',
     'SGD',
     'Trainer',

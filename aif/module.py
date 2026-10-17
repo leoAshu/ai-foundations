@@ -37,6 +37,16 @@ class Classifier(Module):
 
         return compare.mean() if averaged else compare
 
+    # from d2l.ai 4.5.2, so every classifier gets it
+    def loss(self, y_hat, y, averaged=True):
+        # reshaped to support multi-dimensional predictions & targets
+        y_hat = y_hat.reshape((-1, y_hat.shape[-1]))
+        y = y.reshape(-1)
+
+        return nn.functional.cross_entropy(
+            y_hat, y, reduction='mean' if averaged else 'none'
+        )
+
     def validation_step(self, batch):
         y = batch[-1]
         y_hat = self(*batch[:-1])
