@@ -7,6 +7,7 @@ __pycache__/
 # datasets
 FashionMNIST/
 house_prices_kaggle/
+kaggle/*/data/
 
 # kaggle submissions
 submissions/
