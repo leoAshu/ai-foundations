@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from aif import SGD, Classifier, DataModule, Module, Trainer
+from aif import SGD, Classifier, DataModule, Module, SoftmaxClassifier, Trainer
 
 
 class TensorData(DataModule):
@@ -302,3 +302,68 @@ def test_fit_without_clipping_by_default(regression_data, monkeypatch):
     Trainer(max_epochs=1, plot=False).fit(model, regression_data)
 
     assert max(model.optim.norms) > 0.5
+
+
+def test_no_gpus_by_default():
+    assert Trainer(max_epochs=1).gpus == []
+
+
+@pytest.mark.parametrize(
+    ('requested', 'available', 'expected'),
+    [(0, 2, []), (1, 2, ['cuda:0']), (3, 2, ['cuda:0', 'cuda:1']), (2, 0, [])],
+)
+def test_gpus_capped_by_available(monkeypatch, requested, available, expected):
+    monkeypatch.setattr(torch.cuda, 'device_count', lambda: available)
+
+    trainer = Trainer(max_epochs=1, num_gpus=requested)
+
+    assert trainer.gpus == [torch.device(d) for d in expected]
+
+
+def test_prepare_batch_and_model_use_first_gpu():
+    # the meta device stands in for a GPU: tensors move there without memory
+    trainer = Trainer(max_epochs=1)
+    trainer.gpus = [torch.device('meta'), torch.device('cpu')]
+    model = LinearRegression(num_inputs=2)
+
+    trainer.prepare_model(model)
+    batch = trainer.prepare_batch((torch.ones(4, 2), torch.ones(4, 1)))
+
+    assert trainer.model is model
+    assert all(p.device.type == 'meta' for p in model.parameters())
+    assert [t.device.type for t in batch] == ['meta', 'meta']
+
+
+def test_prepare_batch_unchanged_without_gpus():
+    batch = (torch.ones(4, 2), torch.ones(4, 1))
+
+    assert Trainer(max_epochs=1).prepare_batch(batch) is batch
+
+
+cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason='no CUDA GPU')
+
+
+@cuda
+def test_fit_on_gpu(regression_data):
+    model = LinearRegression(num_inputs=2)
+    trainer = Trainer(max_epochs=5, plot=False, num_gpus=1, gradient_clip_val=10.0)
+
+    trainer.fit(model, regression_data)
+
+    assert all(p.device == torch.device('cuda:0') for p in model.parameters())
+    assert all(isinstance(v, float) for v in trainer.history['val_loss'])
+    assert trainer.history['val_loss'][-1] < trainer.history['val_loss'][0] / 100
+
+
+@cuda
+def test_fit_lazy_model_on_gpu():
+    torch.manual_seed(0)
+    X = torch.randn(300, 2)
+    y = (X[:, 0] > X[:, 1]).long()
+
+    model = SoftmaxClassifier(num_outputs=2, lr=0.5)
+    trainer = Trainer(max_epochs=10, plot=False, num_gpus=1)
+    trainer.fit(model, TensorData(X, y, num_train=200))
+
+    assert all(p.device == torch.device('cuda:0') for p in model.parameters())
+    assert trainer.history['val_acc'][-1] > 0.9

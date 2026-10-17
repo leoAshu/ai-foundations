@@ -1,13 +1,15 @@
 import matplotlib.pyplot as plt
 import torch
 
+from aif import device
 from aif.plotting import LiveDisplay, plot_history
 
 
 class Trainer:
     # log_every=None keeps one status line updated in place; log_every=N
     # keeps a line every N epochs (and the last epoch) instead;
-    # gradient_clip_val > 0 clips the gradient norm to it, 0 disables clipping
+    # gradient_clip_val > 0 clips the gradient norm to it, 0 disables clipping;
+    # num_gpus > 0 trains on the first GPU (capped by the GPUs available)
     def __init__(
         self,
         max_epochs,
@@ -17,6 +19,7 @@ class Trainer:
         title=None,
         log_every=None,
         gradient_clip_val=0.0,
+        num_gpus=0,
     ):
         self.max_epochs = max_epochs
         self.plot = plot
@@ -25,6 +28,7 @@ class Trainer:
         self.title = title
         self.log_every = log_every
         self.gradient_clip_val = gradient_clip_val
+        self.gpus = [device.gpu(i) for i in range(min(num_gpus, device.num_gpus()))]
 
         self._reset()
 
@@ -42,9 +46,13 @@ class Trainer:
         self.val_dataloader = data.val_dataloader()
 
     def prepare_model(self, model):
+        if self.gpus:
+            model.to(self.gpus[0])
         self.model = model
 
     def prepare_batch(self, batch):
+        if self.gpus:
+            batch = [a.to(self.gpus[0]) for a in batch]
         return batch
 
     def fit(self, model, data):
