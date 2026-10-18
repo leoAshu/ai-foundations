@@ -1,9 +1,0 @@
-notebook
-numpy
-pandas
-matplotlib
-seaborn
-torch
-torchvision
-kaggle
--e ../.
