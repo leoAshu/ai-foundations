@@ -5,7 +5,7 @@ from aif.optim import BaseOptimizer
 
 
 class Module(nn.Module):
-    def __init__(self, lr):
+    def __init__(self, lr=0.01):
         super().__init__()
 
         self.lr = lr
